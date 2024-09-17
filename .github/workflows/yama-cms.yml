@@ -1,0 +1,137 @@
+name: build & upload site
+
+on:
+  push:
+    branches:
+      - "yama/production"
+      - "yama/preview"
+
+jobs:
+  yama-deploy-production:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+    if: github.ref == 'refs/heads/yama/production'
+    env:
+      FORCE_COLOR: 1
+      OS_USERNAME      : "user-5dN2CS7WyrW5"
+      OS_PASSWORD      : "${{secrets.YAMA_PRODUCTION_CONTAINER_PASSWORD}}"
+      OS_AUTH_URL      : "https://auth.cloud.ovh.net/v3"
+      OS_AUTH_VERSION  : "3"
+      OS_TENANT_NAME   : "7043180390371249"
+      OS_STORAGE_URL   : "https://storage.gra.cloud.ovh.net/v1/AUTH_a9757a9339fe4c29bd258b56518987ee"
+      OS_CONTAINER_NAME: "43070228.176f336b6ec94c51933b065b183d6ae0.production"
+      YAMA_EARTHLY_TARGET: "deploy-production"
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Notify the Yama-CMS platform
+        run: |
+          curl --silent -o /dev/null -X PUT "https://app.yama-cms.com/api/webhooks/${{secrets.YAMA_WEBHOOK_TOKEN}}/task/log" \
+          -H 'Content-Type: application/json' \
+          --data @<(cat <<EOF
+          {
+            "target": "$YAMA_EARTHLY_TARGET",
+            "branch": "$GITHUB_REF_NAME",
+            "status": "started",
+            "detailUrl": "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}",
+            "commitId": "$GITHUB_SHA",
+            "jobId": "$GITHUB_RUN_ID",
+            "triggerReason": "$GITHUB_EVENT_NAME"
+          }
+          EOF
+          )
+
+      - uses: earthly/actions-setup@v1
+
+      - name: Build and upload site (earthly +deploy-production)
+        run: |
+          earthly \
+            --ci \
+            --push \
+            --secret={OS_USERNAME,OS_PASSWORD,OS_AUTH_URL,OS_AUTH_VERSION,OS_TENANT_NAME,OS_STORAGE_URL,OS_CONTAINER_NAME} \
+            --allow-privileged \
+            +deploy-production
+
+      - name: Notify the Yama-CMS platform
+        if: ${{ always() }}
+        run: |
+          curl --silent -o /dev/null -X PUT "https://app.yama-cms.com/api/webhooks/${{secrets.YAMA_WEBHOOK_TOKEN}}/task/log" \
+          -H 'Content-Type: application/json' \
+          --data @<(cat <<EOF
+          {
+            "target": "$YAMA_EARTHLY_TARGET",
+            "branch": "$GITHUB_REF_NAME",
+            "status": "${{ job.status }}",
+            "detailUrl": "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}",
+            "commitId": "$GITHUB_SHA",
+            "jobId": "$GITHUB_RUN_ID",
+            "triggerReason": "$GITHUB_EVENT_NAME"
+          }
+          EOF
+          )
+
+
+  yama-deploy-preview:
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/yama/preview'
+    strategy:
+      fail-fast: false
+    env:
+      FORCE_COLOR: 1
+      OS_USERNAME      : "user-4cuWws7gRgyk"
+      OS_PASSWORD      : "${{secrets.YAMA_PREVIEW_CONTAINER_PASSWORD}}"
+      OS_AUTH_URL      : "https://auth.cloud.ovh.net/v3"
+      OS_AUTH_VERSION  : "3"
+      OS_TENANT_NAME   : "7043180390371249"
+      OS_STORAGE_URL   : "https://storage.gra.cloud.ovh.net/v1/AUTH_a9757a9339fe4c29bd258b56518987ee"
+      OS_CONTAINER_NAME: "43070228.176f336b6ec94c51933b065b183d6ae0.preview"
+      YAMA_EARTHLY_TARGET: "deploy-preview"
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Notify the Yama-CMS platform
+        run: |
+          curl --silent -o /dev/null -X PUT "https://app.yama-cms.com/api/webhooks/${{secrets.YAMA_WEBHOOK_TOKEN}}/task/log" \
+          -H 'Content-Type: application/json' \
+          --data @<(cat <<EOF
+          {
+            "target": "$YAMA_EARTHLY_TARGET",
+            "branch": "$GITHUB_REF_NAME",
+            "status": "started",
+            "detailUrl": "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}",
+            "commitId": "$GITHUB_SHA",
+            "jobId": "$GITHUB_RUN_ID",
+            "triggerReason": "$GITHUB_EVENT_NAME"
+          }
+          EOF
+          )
+
+      - uses: earthly/actions-setup@v1
+
+      - name: Build and upload site (earthly +deploy-preview)
+        run: |
+          earthly \
+            --ci \
+            --push \
+            --secret={OS_USERNAME,OS_PASSWORD,OS_AUTH_URL,OS_AUTH_VERSION,OS_TENANT_NAME,OS_STORAGE_URL,OS_CONTAINER_NAME} \
+            --allow-privileged \
+            +deploy-preview
+
+      - name: Notify the Yama-CMS platform
+        if: ${{ always() }}
+        run: |
+          curl --silent -o /dev/null -X PUT "https://app.yama-cms.com/api/webhooks/${{secrets.YAMA_WEBHOOK_TOKEN}}/task/log" \
+          -H 'Content-Type: application/json' \
+          --data @<(cat <<EOF
+          {
+            "target": "$YAMA_EARTHLY_TARGET",
+            "branch": "$GITHUB_REF_NAME",
+            "status": "${{ job.status }}",
+            "detailUrl": "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}",
+            "commitId": "$GITHUB_SHA",
+            "jobId": "$GITHUB_RUN_ID",
+            "triggerReason": "$GITHUB_EVENT_NAME"
+          }
+          EOF
+          )
